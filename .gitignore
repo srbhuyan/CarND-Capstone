@@ -4,3 +4,9 @@ build
 devel
 
 profile.tmp
+
+# vim temporary files
+*~
+*.swp
+*.swo
+
