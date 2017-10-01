@@ -8,3 +8,8 @@ scipy
 keras
 tensorflow==1.0.0
 h5py
+catkin_pkg
+rospkg
+defusedxml
+empy
+
