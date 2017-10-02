@@ -55,8 +55,19 @@ class DBWNode(object):
 
         # TODO: Create `TwistController` object
         # self.controller = TwistController(<Arguments you wish to provide>)
+        self.min_speed = 5
+        self.controller = Controller(wheel_base, steer_ratio, self.min_speed, 
+                max_lat_accel, max_steer_angle)
 
         # TODO: Subscribe to all the topics you need to
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb)
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
+
+        self.proposed_linear_velocity = 0.0
+        self.proposed_angular_velocity = 0.0
+        self.current_linear_velocity = 0.0
+        self.dbw_enabled = False
 
         self.loop()
 
@@ -72,7 +83,21 @@ class DBWNode(object):
             #                                                     <any other argument you need>)
             # if <dbw is enabled>:
             #   self.publish(throttle, brake, steer)
+
+            throttle, brake, steering = self.controller.control(self.proposed_linear_velocity,
+                    self.proposed_angular_velocity, self.current_linear_velocity)
+
+            if self.dbw_enabled: 
+                self.publish(throttle, brake, steering)
+
             rate.sleep()
+
+    def twist_cmd_cb(self, twist_stamp):
+        #rospy.logwarn('twist_cmd_handler: twist stamp = ' + str(twist_stamp))
+
+        self.proposed_linear_velocity = twist_stamp.twist.linear.x
+        # Assumption: Only the z component of angular velocity is non-zero
+        self.proposed_angular_velocity = twist_stamp.twist.angular.z
 
     def publish(self, throttle, brake, steer):
         tcmd = ThrottleCmd()
@@ -92,6 +117,11 @@ class DBWNode(object):
         bcmd.pedal_cmd = brake
         self.brake_pub.publish(bcmd)
 
+    def current_velocity_cb(self, curr_v):
+        self.current_linear_velocity = curr_v.twist.linear.x
+
+    def dbw_enabled_cb(self, dbw_enabled):
+        self.dbw_enabled = dbw_enabled
 
 if __name__ == '__main__':
     DBWNode()
