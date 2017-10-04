@@ -4,6 +4,7 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
 
+import sys
 import math
 
 '''
@@ -32,54 +33,73 @@ class WaypointUpdater(object):
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
-        
         self.base_wps = None
+        self.base_wps_count = 0
         self.curr_pose = None
 
         rospy.spin()
 
     def pose_cb(self, msg):
         # TODO: Implement
+        self.curr_pose = msg
 
-        final_wps = self.generate_final_waypoints(msg)
+        final_wps = self.generate_final_waypoints()
 
         # publish final waypoints to /final_waypoints topic
         self.final_waypoints_pub.publish(final_wps)
     
-    def generate_final_waypoints(self, curr_pose):
-        gen_wps = []
+    def generate_final_waypoints(self):
+        select_wps = []
 
         # waypoints from base waypoints
-        if(self.base_wps is None):
-            rospy.logerr('ganerate_final_waypoints : No base waypoints received yet!!!')
-        else:
-            # first waypoint from base waypoints
-            start_index = 0
-            for i in range(0, len(self.base_wps)-1):
-                w = self.base_wps[i]
-                if w.pose.pose.position.x > curr_pose.pose.position.x:
-                    #rospy.logwarn('Found first waypoint ahead of car')
-                    #rospy.logwarn(w.pose.pose.position)
-                    start_index = i
-                    break
+        if self.base_wps:
+            # waypoint closest to car
+            start_idx = self.closest_wp(self.base_wps, self.curr_pose)
 
-            # LOOKAHEAD_WPS number of waypoints in front of the car
-            for i in range(start_index, start_index + LOOKAHEAD_WPS):
-                gen_wps.append(self.base_wps[i])
+            # slice LOOKAHEAD_WPS number of waypoints from base waypoints 
+            end_idx = start_idx + LOOKAHEAD_WPS
+            if end_idx > self.base_wps_count:
+                select_wps = self.base_wps[start_idx:] + self.base_wps[0:end_idx % self.base_wps_count]
+            else:
+                select_wps = self.base_wps[start_idx:end_idx]
+
+            #rospy.logwarn('final waypoints range: (' + str(start_idx) + ',' + str(end_idx % self.base_wps_count) + ')')
 
         final_wps = Lane()
-        final_wps.waypoints = gen_wps
+        final_wps.waypoints = select_wps
+
+        # velocities are not set for the final waypoints
+        # need to set velocities depending on obstacles
 
         return final_wps
-         
+     
+    def closest_wp(self, waypoints, p):
+        # This closest point returned might not be infront of the car
+        # Is that problematic?
+
+        min_dist = sys.maxint
+        min_dist_idx = 0
+
+        for i in range(0, self.base_wps_count):
+            dist = self.euclidean_distance(self.base_wps[i].pose.pose.position, p.pose.position)
+            if min_dist > dist:
+                min_dist = dist
+                min_dist_idx = i
+
+        return min_dist_idx
+
+    def euclidean_distance(self, p1, p2):
+        # Can we ignore z ?
+        return math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2  + (p1.z-p2.z)**2)
+
     def waypoints_cb(self, waypoints):
         # TODO: Implement
         self.base_wps = waypoints.waypoints
-        rospy.logwarn('base waypoints size = ' + str(len(self.base_wps)))
+        self.base_wps_count = len(self.base_wps)
+        rospy.logwarn('Base waypoints count = %d' % (self.base_wps_count))
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
