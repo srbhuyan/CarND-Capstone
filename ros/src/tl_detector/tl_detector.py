@@ -13,9 +13,9 @@ from light_classification.tl_classifier import TLClassifier
 import tf
 import cv2
 import yaml
+import csv
 
 STATE_COUNT_THRESHOLD = 3
-CAPTURE_TEST_DATA = True
 
 class TLDetector(object):
     def __init__(self):
@@ -54,6 +54,17 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
+        # Capture test data
+        self.capture_test_data = True
+        self.car_stop_line_gap_threshold = 120 # max gap between light and car
+                                               # for the light to be captured for training
+        self.img_dir = './data'
+        self.img_base_name = 'img'
+        self.img_counter = 1
+        self.img_total_count_to_capture = 600
+        self.img_csv_file_name = './data/img_test_data.csv'
+        self.img_csv_touple = []
+
         rospy.spin()
 
     def pose_cb(self, msg):
@@ -62,8 +73,7 @@ class TLDetector(object):
     def waypoints_cb(self, waypoints):
         self.waypoints = waypoints.waypoints
         self.waypoints_count = len(self.waypoints)
-        rospy.logwarn('-----------------------------Received base waypoints----------------------')
-        rospy.logwarn('Base waypoints Count = ' + str(self.waypoints_count))
+        rospy.logwarn('Received base waypoints. Total base waypoints = ' + str(self.waypoints_count))
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
@@ -80,8 +90,14 @@ class TLDetector(object):
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
 
-        # capture test data
-        if CAPTURE_TEST_DATA:
+        # capture test data 
+        if self.capture_test_data and self.has_image and self.pose:
+            '''
+            Captures traffic lights which are within 'self.car_stop_line_gap_threshold' waypoints ahead of the car.
+            Writes the image file name, light state (as received in the /vehicle/traffic_lights topic) and 
+            the lights 3D coordinates to self.img_csv_file_name
+            '''
+
             # closest waypoint to car position
             # closest waypoint to next light stop line
             # light_3D_position
@@ -89,12 +105,36 @@ class TLDetector(object):
             
             wp_closest_to_car_idx = self.get_closest_waypoint(self.pose.pose)
             next_stop_line_idx, next_stop_light_pose = self.get_next_stop_line()
-            wp_closest_to_next_stop_line = self.get_closest_waypoint(next_stop_light_pose.pose) 
-            next_light_3d = self.lights[next_stop_line_idx]
-            next_light_state = next_light_3d.state
+            wp_closest_to_next_stop_line_idx = self.get_closest_waypoint(next_stop_light_pose.pose) 
+            next_light_3D = self.lights[next_stop_line_idx]
+            next_light_state = next_light_3D.state
 
-            rospy.logwarn('next stop line = ' + str(next_stop_line_idx))
-            rospy.logwarn('next_stop light state ' + str(next_light_state))
+            car_stop_line_gap = wp_closest_to_next_stop_line_idx - wp_closest_to_car_idx
+           
+            # capture image within the gap threshold
+            if (self.img_counter <= self.img_total_count_to_capture) and car_stop_line_gap > -1 and car_stop_line_gap <= self.car_stop_line_gap_threshold:
+
+                cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+                img_name = '%s_%s_%s.png' % (self.img_base_name, car_stop_line_gap, self.img_counter)
+                rospy.logwarn('captured image ' + img_name)
+
+                cv2.imwrite(self.img_dir + '/' + img_name, cv_image)
+                self.img_counter += 1
+
+                # csv touple
+                self.img_csv_touple.append((img_name, next_light_state, next_light_3D.pose.pose.position.x, next_light_3D.pose.pose.position.y, next_light_3D.pose.pose.position.z))
+
+            # csv_entry
+            if self.img_counter == self.img_total_count_to_capture:
+                rospy.logwarn('Test images captured.  Writing to csv file ' + self.img_csv_file_name)
+
+                self.capture_test_data = False
+
+                with open(self.img_csv_file_name, 'wb') as csvfile:
+                    csv_writer = csv.writer(csvfile, delimiter=',')
+
+                    for t in self.img_csv_touple:
+                        csv_writer.writerow(t)
 
         '''
         Publish upcoming red lights at camera frequency.
