@@ -55,7 +55,7 @@ class TLDetector(object):
         self.state_count = 0
 
         # Capture test data
-        self.capture_test_data = True
+        self.capture_test_data = False
         self.car_stop_line_gap_threshold = 120 # max gap between light and car
                                                # for the light to be captured for training
         self.img_dir = './data'
