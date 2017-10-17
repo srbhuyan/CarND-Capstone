@@ -4,11 +4,11 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 
 |   Name                        |   Udacity account email            |
 |-------------------------------|------------------------------------|
-| Soumya Bhuyan (**Team Lead**) | soumya.tiklu (at) gmail.com        |
-| Amit Patel                    | amitpatel.gt (at) gmail.com        |
-| Anirudh Singh Shekhawat       | anirudhshekh (at) gmail.com        |
-| Yifei Li                      | workingyifei (at) gmail.com        |
-| Zhi Zeng                      | zengzhi_2012 (at) icloud.com       |
+| Soumya Bhuyan (**Team Lead**) | soumya.tiklu@gmail.com        |
+| Amit Patel                    | amitpatel.gt@gmail.com        |
+| Anirudh Singh Shekhawat       | anirudhshekh@gmail.com        |
+| Yifei Li                      | workingyifei@gmail.com        |
+| Zhi Zeng                      | zengzhi_2012@icloud.com       |
 
 ### Native Installation
 
