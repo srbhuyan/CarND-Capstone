@@ -216,7 +216,6 @@ class TLDetector(object):
 
         return min_dist_idx
 
-
     def project_to_image_plane(self, point_in_world):
         # This function has problems!
         """Project point from 3D world coordinates to 2D camera image location
@@ -272,7 +271,6 @@ class TLDetector(object):
         x=(fx*X_camera_coord + cx*Z_camera_coord)/Z_camera_coord
         y=-(fy*Y_camera_coord + cy*Z_camera_coord)/Z_camera_coord
         return (x, y)
-
     def euclidean_distance_2D(self, p1, p2):
         return math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2)
 
@@ -300,7 +298,6 @@ class TLDetector(object):
         # x, y = self.project_to_image_plane(light.pose.pose.position)
 
         #TODO use light location to zoom in on traffic light in image
-
         #Get classification
         return self.light_classifier.get_classification(cv_image)
 
