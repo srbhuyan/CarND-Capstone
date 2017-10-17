@@ -1,5 +1,4 @@
 from styx_msgs.msg import TrafficLight
-from simple_detector import simple_detector
 
 class TLClassifier(object):
     def __init__(self):
@@ -17,7 +16,4 @@ class TLClassifier(object):
 
         """
         #TODO implement light color prediction
-        result = simple_detector(image)
-	if result == -1:
-            TrafficLight.UNKNOWN
-        return result
+        return TrafficLight.UNKNOWN
