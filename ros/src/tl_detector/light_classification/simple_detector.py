@@ -60,7 +60,8 @@ def color_space_segmentation(image):
     return segment_r,segment_g,segment_y
 
 # Simple classifier
-def simple_detector(image,show_image=0):
+def simple_detector(raw_image,show_image=0):
+    image = image_preprocessing(raw_image)
     segment_r,segment_g,segment_y = color_space_segmentation(image)
     score_r = np.sum(segment_r)
     score_g = np.sum(segment_g)
