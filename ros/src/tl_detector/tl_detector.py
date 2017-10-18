@@ -5,6 +5,7 @@ import math
 import rospy
 from std_msgs.msg import Int32
 from geometry_msgs.msg import PoseStamped, Pose
+import numpy as np
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
@@ -14,6 +15,8 @@ import tf
 import cv2
 import yaml
 import csv
+
+from light_classification.simple_detector import simple_detector, simple_detector_ROSdebug
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -294,6 +297,8 @@ class TLDetector(object):
             return False
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        raw_image = cv2.cvtColor(cv_image,cv2.COLOR_BGR2RGB)
+        # cv2.imwrite('debug.png',cv_image)
 
         # We should get the 3D position of the traffic light
         # The following function cannot work properly, since no camera pose info. is provided!
@@ -301,7 +306,12 @@ class TLDetector(object):
 
         #TODO use light location to zoom in on traffic light in image
         #Get classification
-        return self.light_classifier.get_classification(cv_image)
+        #state = self.light_classifier.get_classification(raw_image)
+        state = simple_detector(raw_image)
+        #debug_state = simple_detector_ROSdebug(raw_image)
+        #rospy.logwarn(np.shape(raw_image))
+        rospy.logwarn(state)
+        return state
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -312,9 +322,13 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
+        
         # Light color detection
         # self.camera_image = sensor_msgs/Image
         light = None
+        
+        # The following line is for debugging
+        state = self.get_light_state(light)
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         # config.yaml->self.config;(camera_info,stop_line_positions)
