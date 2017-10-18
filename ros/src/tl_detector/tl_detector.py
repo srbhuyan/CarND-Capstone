@@ -298,7 +298,6 @@ class TLDetector(object):
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         raw_image = cv2.cvtColor(cv_image,cv2.COLOR_BGR2RGB)
-        # cv2.imwrite('debug.png',cv_image)
 
         # We should get the 3D position of the traffic light
         # The following function cannot work properly, since no camera pose info. is provided!
@@ -306,11 +305,15 @@ class TLDetector(object):
 
         #TODO use light location to zoom in on traffic light in image
         #Get classification
-        #state = self.light_classifier.get_classification(raw_image)
-        state = simple_detector(raw_image)
-        #debug_state = simple_detector_ROSdebug(raw_image)
-        #rospy.logwarn(np.shape(raw_image))
-        rospy.logwarn(state)
+        state = self.light_classifier.get_classification(raw_image)
+        state_str = 'The state of the traffic light is: Unknown'
+        if state==0:
+            state_str = 'The state of the traffic light is: Red'
+        if state==1:
+            state_str = 'The state of the traffic light is: Yellow'
+        if state==2:
+            state_str = 'The state of the traffic light is: Green'
+        rospy.logwarn(state_str)
         return state
 
     def process_traffic_lights(self):
@@ -326,9 +329,6 @@ class TLDetector(object):
         # Light color detection
         # self.camera_image = sensor_msgs/Image
         light = None
-        
-        # The following line is for debugging
-        state = self.get_light_state(light)
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         # config.yaml->self.config;(camera_info,stop_line_positions)
@@ -338,35 +338,35 @@ class TLDetector(object):
             # PoseStamped: (header;pose(position;orientation))  ;'self.pose = msg'
             car_way_point_index = self.get_closest_waypoint(self.pose.pose.position) 
 
-        #TODO find the closest visible stop line (if one exists)
-        # First, find out the nearest waypoints to each stop line.
-        stop_line_positions = self.config['stop_line_positions']
-        line_way_point_indices = []
-        for i in range(0, len(stop_line_positions)):
-            line_way_point_indices.append(self.get_closest_waypoint(stop_line_positions[i]))
+            #TODO find the closest visible stop line (if one exists)
+            # First, find out the nearest waypoints to each stop line.
+            stop_line_positions = self.config['stop_line_positions']
+            line_way_point_indices = []
+            for i in range(0, len(stop_line_positions)):
+                line_way_point_indices.append(self.get_closest_waypoint(stop_line_positions[i]))
+                
+            # Second, find out the index of the way point of the nearest line on path
+            min_dist = sys.maxint
+            min_dist_idx = -1
+            for i in range(0, len(line_way_point_indices)):
+                dist = i - car_way_point_index
+                if dist>0 and min_dist > dist:
+                    min_dist = dist
+                    min_dist_idx = i    
+            nearesr_line_way_point_index = line_way_point_indices[min_dist_idx]
             
-        # Second, find out the index of the way point of the nearest line on path
-        min_dist = sys.maxint
-        min_dist_idx = -1
-        for i in range(0, len(line_way_point_indices)):
-            dist = i - car_way_point_index
-            if dist>0 and min_dist > dist:
-                min_dist = dist
-                min_dist_idx = i    
-        nearesr_line_way_point_index = line_way_point_indices[min_dist_idx]
-        
-        # Third check wheter the nearest light is visable
-        # Check whether the position is visable
-        X,Y = stop_line_positions[min_dist_idx]
-        Z = 0
-        position_visable = False
-        x,y = self.project_to_image_plane([X,Y,Z])
-        if x>0 and x<self.config['camera_info']['image_width']:
-            position_visable = True
-
-        if position_visable:
-            state = self.get_light_state(light)
-            return nearesr_line_way_point_index, state
+            # Third check wheter the nearest light is visable
+            # Check whether the position is visable
+            X,Y = stop_line_positions[min_dist_idx]
+            Z = 0
+            position_visable = False
+            x,y = self.project_to_image_plane([X,Y,Z])
+            if x>0 and x<self.config['camera_info']['image_width']:
+                position_visable = True
+    
+            if position_visable:
+                state = self.get_light_state(light)
+                return nearesr_line_way_point_index, state
 
         return -1, TrafficLight.UNKNOWN
 
