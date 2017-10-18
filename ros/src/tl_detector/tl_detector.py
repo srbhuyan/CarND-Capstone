@@ -259,11 +259,12 @@ class TLDetector(object):
         orientation_camera = self.pose.pose.orientation
         # orientation = [(x,y,x)*sin(theta/2),cos(theta/2)]
         # theta = 2*math.acos(orientation_camera[3])
-        sin_theta = orientation_camera[2]
-        cos_theta = orientation_camera[3]
-        dX = point_in_world[0] - position_camera[0]
-        dY = point_in_world[1] - position_camera[1]
-        dZ = point_in_world[2] - position_camera[2]
+        sin_theta = orientation_camera.z
+        cos_theta = orientation_camera.w
+        dX = point_in_world[0] - position_camera.x
+        dY = point_in_world[1] - position_camera.y
+        dZ = point_in_world[2] - position_camera.z
+        
         X_camera_coord = dX*cos_theta + dY*sin_theta
         Y_camera_coord = dZ
         Z_camera_coord = -(-dX*sin_theta + dY*cos_theta)
