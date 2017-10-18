@@ -209,7 +209,7 @@ class TLDetector(object):
         min_dist_idx = 0 # the index in self.waypoints that points to the minimum distance
 
         for i in range(0, self.waypoints_count):
-            dist = self.euclidean_distance_3D(self.waypoints[i].pose.pose.position, self.pose.position)
+            dist = self.euclidean_distance_3D(self.waypoints[i].pose.pose.position, self.pose.pose.position)
             if min_dist > dist:
                 min_dist = dist
                 min_dist_idx = i 
@@ -217,7 +217,7 @@ class TLDetector(object):
         return min_dist_idx
 
     def project_to_image_plane(self, point_in_world):
-        # This function has problems!
+        # This function has problems! No focal length is provided for the simulator.
         """Project point from 3D world coordinates to 2D camera image location
 
         Args:
@@ -271,6 +271,7 @@ class TLDetector(object):
         x=(fx*X_camera_coord + cx*Z_camera_coord)/Z_camera_coord
         y=-(fy*Y_camera_coord + cy*Z_camera_coord)/Z_camera_coord
         return (x, y)
+    
     def euclidean_distance_2D(self, p1, p2):
         return math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2)
 
