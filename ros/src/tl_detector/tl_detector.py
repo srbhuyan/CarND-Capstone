@@ -238,7 +238,8 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        light = None
+        light = -1
+        state = -1
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
@@ -247,9 +248,28 @@ class TLDetector(object):
 
         #TODO find the closest visible traffic light (if one exists)
 
-        if light:
-            state = self.get_light_state(light)
+        wp_closest_to_car_idx = self.get_closest_waypoint(self.pose.pose)
+        next_stop_line_idx, next_stop_light_pose = self.get_next_stop_line()
+        wp_closest_to_next_stop_line_idx = self.get_closest_waypoint(next_stop_light_pose.pose) 
+        next_light_3D = self.lights[next_stop_line_idx]
+        next_light_state = next_light_3D.state
+
+        car_stop_line_gap = wp_closest_to_next_stop_line_idx - wp_closest_to_car_idx
+         
+        # flag classifier if upcoming stop line is within the threshold
+        if car_stop_line_gap > -1 and car_stop_line_gap <= self.car_stop_line_gap_threshold:
+            light = next_stop_line_idx
+            state = next_light_state
+
+        if light > -1:
+            #state = self.get_light_state(light)
+
+            # hack traffic light state until classifier is implemented
+            light_wp = wp_closest_to_next_stop_line_idx
+            state = next_light_state
+
             return light_wp, state
+
         #self.waypoints = None
         return -1, TrafficLight.UNKNOWN
 

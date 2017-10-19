@@ -3,6 +3,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
 
 import sys
 import math
@@ -33,12 +34,16 @@ class WaypointUpdater(object):
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
         self.base_wps = None
         self.base_wps_count = 0
         self.curr_pose = None
+
+        self.stop_idx = -1
 
         rospy.spin()
 
@@ -71,9 +76,35 @@ class WaypointUpdater(object):
         final_wps = Lane()
         final_wps.waypoints = select_wps
 
-        # velocities are not set for the final waypoints
-        # need to set velocities depending on obstacles
+        # if upcoming red light -> Decelerate (to full stop) 
+        # else                  -> Accelerate (to max velocity) 
 
+        # Deceleration
+        if self.stop_idx != -1:
+
+            # set velocities of all selected wps to zero
+            for i in range(len(select_wps)):
+                self.set_waypoint_velocity(select_wps, i, 0.0)
+                
+            # control deceleration
+            stop_idx_in_select_wps = self.stop_idx - start_idx
+            decelerate_rate = 0.2
+            velocity = 0.0
+
+            for i in range(stop_idx_in_select_wps+1):
+                self.set_waypoint_velocity(select_wps, stop_idx_in_select_wps - i, velocity)
+                velocity += decelerate_rate
+        
+        # Acceleration
+        else:
+            # set velocities of all selected wps to 40
+            for i in range(len(select_wps)):
+                self.set_waypoint_velocity(select_wps, i, 25.0)
+
+        v = []
+        for w in select_wps:
+            v.append(w.twist.twist.linear.x)
+                    
         return final_wps
      
     def closest_wp(self, waypoints, p):
@@ -103,7 +134,10 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+
+        self.stop_idx = msg.data
+
+        #rospy.logwarn('waypoint_updater: Traffic stop line waypoint index = {}'.format(msg.data) )
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
