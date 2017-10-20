@@ -11,7 +11,7 @@ def image_preprocessing(raw_image):
     image = np.array(raw_image)
     # uint8->double
     if image.dtype=='uint8':
-        image = np.double(image)
+        image = np.double(image)/255.0
     # Saturate
     image[image<0.1] = 0.1
     return image
@@ -60,7 +60,8 @@ def color_space_segmentation(image):
     return segment_r,segment_g,segment_y
 
 # Simple classifier
-def simple_detector(image,show_image=0):
+def simple_detector(raw_image,show_image=0):
+    image = image_preprocessing(raw_image)
     segment_r,segment_g,segment_y = color_space_segmentation(image)
     score_r = np.sum(segment_r)
     score_g = np.sum(segment_g)
@@ -68,5 +69,13 @@ def simple_detector(image,show_image=0):
     if np.max([score_r,score_g,score_y]) <= 0:
         return -1
     return np.argmax([score_r,score_y,score_g])
+
+def simple_detector_ROSdebug(raw_image,show_image=0):
+    image = image_preprocessing(raw_image)
+    segment_r,segment_g,segment_y = color_space_segmentation(image)
+    score_r = np.sum(segment_r)
+    score_g = np.sum(segment_g)
+    score_y = np.sum(segment_y)
+    return [score_r,score_y,score_g]
 
     
