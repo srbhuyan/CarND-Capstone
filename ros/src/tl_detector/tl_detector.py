@@ -5,6 +5,7 @@ import math
 import rospy
 from std_msgs.msg import Int32
 from geometry_msgs.msg import PoseStamped, Pose
+import numpy as np
 from styx_msgs.msg import TrafficLightArray, TrafficLight
 from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
@@ -14,6 +15,8 @@ import tf
 import cv2
 import yaml
 import csv
+
+from light_classification.simple_detector import simple_detector, simple_detector_ROSdebug
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -53,6 +56,9 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+
+        # Hack light state to run tests independent of the classifier
+        self.hack_light_state = False
 
         # Capture test data
         self.capture_test_data = False
@@ -225,9 +231,10 @@ class TLDetector(object):
             return False
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        raw_image = cv2.cvtColor(cv_image,cv2.COLOR_BGR2RGB)
 
         #Get classification
-        return self.light_classifier.get_classification(cv_image)
+        return self.light_classifier.get_classification(raw_image)
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -238,6 +245,7 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
+
         light = -1
         state = -1
 
@@ -262,11 +270,26 @@ class TLDetector(object):
             state = next_light_state
 
         if light > -1:
-            #state = self.get_light_state(light)
+            
+            # use hack to run tests independent of the classifier
+            if self.hack_light_state:
+                state = next_light_statie
+            else:
+                state = self.get_light_state(light)
 
-            # hack traffic light state until classifier is implemented
+                state_str = 'Unknown'
+
+                if state == 0:
+                    state_str = 'Red'
+                elif state == 1:
+                    state_str = 'Yellow'
+                elif state == 2:
+                    state_str = 'Green'
+
+                rospy.logwarn('The state of the traffic light is: {}'.format(state_str))
+            
+            # waypoint closest to next stop line
             light_wp = wp_closest_to_next_stop_line_idx
-            state = next_light_state
 
             return light_wp, state
 
