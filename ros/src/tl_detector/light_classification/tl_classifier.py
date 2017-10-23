@@ -17,6 +17,7 @@ class TLClassifier(object):
 
         """
         #TODO implement light color prediction
+        
         result = simple_detector(image)
         if result == 0:
             return TrafficLight.RED
@@ -24,4 +25,5 @@ class TLClassifier(object):
             return TrafficLight.YELLOW
         if result == 2:
             return TrafficLight.GREEN
+
         return TrafficLight.UNKNOWN

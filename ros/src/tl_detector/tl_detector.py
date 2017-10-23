@@ -16,6 +16,10 @@ import cv2
 import yaml
 import csv
 
+# The following lib is for debug
+import matplotlib.pyplot as plt
+from debug_utilities import plot_wp_vc_sl_tl_2D
+
 from light_classification.simple_detector import simple_detector, simple_detector_ROSdebug
 
 STATE_COUNT_THRESHOLD = 3
@@ -24,13 +28,12 @@ class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
 
-        self.pose = None # self.pose<-(sub1,self.pose_cb)/current_pose
-        self.waypoints = None # self.waypoints<-(sub2,self.waypoints_cb)/base_waypoints
+        self.pose = None
+        self.waypoints = None
         self.waypoints_count = 0
-        self.camera_image = None # self.camera_image<-(sub3,self.traffic_cb)/vehicle/traffic_lights
-        self.lights = [] # # self.lights<-(sub4,self.image_cb)/image_color
+        self.camera_image = None
+        self.lights = []
 
-        # Add subscribers to four useful topics
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
@@ -44,21 +47,22 @@ class TLDetector(object):
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
-        # Load the position of traffic light stop line and the size of the captured image
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
 
-        # Add a publisher to the topic indicating the index of the way point of the stop line 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
-        self.bridge = CvBridge() # used to converge the image msg to cv::Mat
-        self.light_classifier = TLClassifier() # classifier for detecting the color of the traffic light
+        self.bridge = CvBridge()
+        self.light_classifier = TLClassifier()
         self.listener = tf.TransformListener()
 
-        self.state = TrafficLight.UNKNOWN # the color of the traffic light
-        self.last_state = TrafficLight.UNKNOWN # the color of the previous traffic light
-        self.last_wp = -1 # previous way point
+        self.state = TrafficLight.UNKNOWN
+        self.last_state = TrafficLight.UNKNOWN
+        self.last_wp = -1
         self.state_count = 0
+
+        # Hack light state to run tests independent of the classifier
+        self.hack_light_state = False
 
         # Capture test data
         self.capture_test_data = False
@@ -74,23 +78,16 @@ class TLDetector(object):
         rospy.spin()
 
     def pose_cb(self, msg):
-    	'''
-    	Get the pose of the car
-    	'''
         self.pose = msg
 
     def waypoints_cb(self, waypoints):
-    	'''
-    	Get all waypoints and the length of the waypoints
-    	'''
         self.waypoints = waypoints.waypoints
         self.waypoints_count = len(self.waypoints)
         rospy.logwarn('Received base waypoints. Total base waypoints = ' + str(self.waypoints_count))
+        # The following lines ar for debug perpose
+        # plot_waypoints_2D(self.waypoints)
 
     def traffic_cb(self, msg):
-    	'''
-    	Get info. regarding all traffic lights (3D position and state)
-    	'''
         self.lights = msg.lights
 
     def image_cb(self, msg):
@@ -118,9 +115,9 @@ class TLDetector(object):
             # light_3D_position
             # state
             
-            wp_closest_to_car_idx = self.get_closest_waypoint(self.pose.pose.position)
+            wp_closest_to_car_idx = self.get_closest_waypoint(self.pose.pose)
             next_stop_line_idx, next_stop_light_pose = self.get_next_stop_line()
-            wp_closest_to_next_stop_line_idx = self.get_closest_waypoint(next_stop_light_pose.pose.position) 
+            wp_closest_to_next_stop_line_idx = self.get_closest_waypoint(next_stop_light_pose.pose) 
             next_light_3D = self.lights[next_stop_line_idx]
             next_light_state = next_light_3D.state
 
@@ -172,8 +169,7 @@ class TLDetector(object):
     def get_next_stop_line(self):
         """
         The closest stop line this method returns might be behind the car.
-        We might need a better logic (comments by Zhi: I think we should use way point 
-        index rather than real distance.)
+        We might need a better logic
         """
 
         stop_line_positions = self.config['stop_line_positions']
@@ -197,8 +193,8 @@ class TLDetector(object):
 
         return min_dist_idx, p
 
-    def get_closest_waypoint(self, position):
-        """Identifies the closest path waypoint in 'self.waypoints' to the given position
+    def get_closest_waypoint(self, pose):
+        """Identifies the closest path waypoint to the given position
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
         Args:
             pose (Pose): position to match a waypoint to
@@ -208,74 +204,18 @@ class TLDetector(object):
 
         """
         #TODO implement
-        min_dist = sys.maxint # the maximum number that can be represented by in in this system
-        min_dist_idx = 0 # the index in self.waypoints that points to the minimum distance
+
+        min_dist = sys.maxint
+        min_dist_idx = 0
 
         for i in range(0, self.waypoints_count):
-            dist = self.euclidean_distance_3D(self.waypoints[i].pose.pose.position, self.pose.pose.position)
+            dist = self.euclidean_distance_3D(self.waypoints[i].pose.pose.position, pose.position)
             if min_dist > dist:
                 min_dist = dist
                 min_dist_idx = i 
 
         return min_dist_idx
 
-    def project_to_image_plane(self, point_in_world):
-        # This function has problems! No focal length is provided for the simulator.
-        """Project point from 3D world coordinates to 2D camera image location
-
-        Args:
-            point_in_world (Point): 3D location of a point in the world
-
-        Returns:
-            x (int): x coordinate of target point in image
-            y (int): y coordinate of target point in image
-
-        """
-
-        fx = self.config['camera_info']['focal_length_x']
-        fy = self.config['camera_info']['focal_length_y']
-        image_width = self.config['camera_info']['image_width']
-        image_height = self.config['camera_info']['image_height']
-        cx = image_width/2
-        cy = image_height/2
-
-        # get transform between pose of camera and world frame
-        trans = None
-        try:
-            now = rospy.Time.now()
-            self.listener.waitForTransform("/base_link",
-                  "/world", now, rospy.Duration(1.0))
-            (trans, rot) = self.listener.lookupTransform("/base_link",
-                  "/world", now)
-
-        except (tf.Exception, tf.LookupException, tf.ConnectivityException):
-            rospy.logerr("Failed to find camera to map transform")
-
-        #TODO Use tranform and rotation to calculate 2D position of light in image
-        # xZ = fx*X + cx*Z;
-        # yZ = fy*Y + cy*Z;
-        # self.lights[i].pose.pose.position(and orientation)
-        # self.pose.pose.position(and orientation)
-        
-        # NO CAMERA POSE INFOMATION IS PROVIDED. THIS FUNCTION CANNOT WORK CORRECTLLY!
-        position_camera = self.pose.pose.position
-        orientation_camera = self.pose.pose.orientation
-        # orientation = [(x,y,x)*sin(theta/2),cos(theta/2)]
-        # theta = 2*math.acos(orientation_camera[3])
-        sin_theta = orientation_camera.z
-        cos_theta = orientation_camera.w
-        dX = point_in_world[0] - position_camera.x
-        dY = point_in_world[1] - position_camera.y
-        dZ = point_in_world[2] - position_camera.z
-        
-        X_camera_coord = dX*cos_theta + dY*sin_theta
-        Y_camera_coord = dZ
-        Z_camera_coord = -(-dX*sin_theta + dY*cos_theta)
-        
-        x=(fx*X_camera_coord + cx*Z_camera_coord)/Z_camera_coord
-        y=-(fy*Y_camera_coord + cy*Z_camera_coord)/Z_camera_coord
-        return (x, y)
-    
     def euclidean_distance_2D(self, p1, p2):
         return math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2)
 
@@ -299,22 +239,8 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         raw_image = cv2.cvtColor(cv_image,cv2.COLOR_BGR2RGB)
 
-        # We should get the 3D position of the traffic light
-        # The following function cannot work properly, since no camera pose info. is provided!
-        # x, y = self.project_to_image_plane(light.pose.pose.position)
-
-        #TODO use light location to zoom in on traffic light in image
         #Get classification
-        state = self.light_classifier.get_classification(raw_image)
-        state_str = 'The state of the traffic light is: Unknown'
-        if state==0:
-            state_str = 'The state of the traffic light is: Red'
-        if state==1:
-            state_str = 'The state of the traffic light is: Yellow'
-        if state==2:
-            state_str = 'The state of the traffic light is: Green'
-        rospy.logwarn(state_str)
-        return state
+        return self.light_classifier.get_classification(raw_image)
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -325,49 +251,63 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        
-        # Light color detection
-        # self.camera_image = sensor_msgs/Image
-        light = None
+
+        light = -1
+        state = -1
 
         # List of positions that correspond to the line to stop in front of for a given intersection
-        # config.yaml->self.config;(camera_info,stop_line_positions)
         stop_line_positions = self.config['stop_line_positions']
-        if(self.pose): 
-            # Get index of the closest way point to the car
-            # PoseStamped: (header;pose(position;orientation))  ;'self.pose = msg'
-            car_way_point_index = self.get_closest_waypoint(self.pose.pose.position) 
+        if(self.pose):
+            car_position = self.get_closest_waypoint(self.pose.pose)
+            # The following code is for debug only
+            if(self.waypoints):
+                #plot_wp_vc_2D(self.waypoints,self.pose)
+                plot_wp_vc_sl_tl_2D(self.waypoints,self.pose,self.config,self.lights)
+            else:
+                return -1, TrafficLight.UNKNOWN
+        else:
+            return -1, TrafficLight.UNKNOWN
 
-            #TODO find the closest visible stop line (if one exists)
-            # First, find out the nearest waypoints to each stop line.
-            stop_line_positions = self.config['stop_line_positions']
-            line_way_point_indices = []
-            for i in range(0, len(stop_line_positions)):
-                line_way_point_indices.append(self.get_closest_waypoint(stop_line_positions[i]))
-                
-            # Second, find out the index of the way point of the nearest line on path
-            min_dist = sys.maxint
-            min_dist_idx = -1
-            for i in range(0, len(line_way_point_indices)):
-                dist = i - car_way_point_index
-                if dist>0 and min_dist > dist:
-                    min_dist = dist
-                    min_dist_idx = i    
-            nearesr_line_way_point_index = line_way_point_indices[min_dist_idx]
+        #TODO find the closest visible traffic light (if one exists)
+
+        wp_closest_to_car_idx = self.get_closest_waypoint(self.pose.pose)
+        next_stop_line_idx, next_stop_light_pose = self.get_next_stop_line()
+        wp_closest_to_next_stop_line_idx = self.get_closest_waypoint(next_stop_light_pose.pose) 
+        next_light_3D = self.lights[next_stop_line_idx]
+        next_light_state = next_light_3D.state
+
+        car_stop_line_gap = wp_closest_to_next_stop_line_idx - wp_closest_to_car_idx
+         
+        # flag classifier if upcoming stop line is within the threshold
+        if car_stop_line_gap > -1 and car_stop_line_gap <= self.car_stop_line_gap_threshold:
+            light = next_stop_line_idx
+            state = next_light_state
+
+        if light > -1:
             
-            # Third check wheter the nearest light is visable
-            # Check whether the position is visable
-            X,Y = stop_line_positions[min_dist_idx]
-            Z = 0
-            position_visable = False
-            x,y = self.project_to_image_plane([X,Y,Z])
-            if x>0 and x<self.config['camera_info']['image_width']:
-                position_visable = True
-    
-            if position_visable:
+            # use hack to run tests independent of the classifier
+            if self.hack_light_state:
+                state = next_light_statie
+            else:
                 state = self.get_light_state(light)
-                return nearesr_line_way_point_index, state
 
+                state_str = 'Unknown'
+
+                if state == 0:
+                    state_str = 'Red'
+                elif state == 1:
+                    state_str = 'Yellow'
+                elif state == 2:
+                    state_str = 'Green'
+
+                rospy.logwarn('The state of the traffic light is: {}'.format(state_str))
+            
+            # waypoint closest to next stop line
+            light_wp = wp_closest_to_next_stop_line_idx
+
+            return light_wp, state
+
+        #self.waypoints = None
         return -1, TrafficLight.UNKNOWN
 
 if __name__ == '__main__':
