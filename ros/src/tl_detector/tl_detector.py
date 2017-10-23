@@ -18,7 +18,7 @@ import csv
 
 # The following lib is for debug
 import matplotlib.pyplot as plt
-from debug_utilities import plot_waypoints_2D
+from debug_utilities import plot_waypoints_2D, plot_wp_vc_2D
 
 from light_classification.simple_detector import simple_detector, simple_detector_ROSdebug
 
@@ -85,7 +85,7 @@ class TLDetector(object):
         self.waypoints_count = len(self.waypoints)
         rospy.logwarn('Received base waypoints. Total base waypoints = ' + str(self.waypoints_count))
         # The following lines ar for debug perpose
-        plot_waypoints_2D(self.waypoints)
+        # plot_waypoints_2D(self.waypoints)
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
@@ -259,6 +259,13 @@ class TLDetector(object):
         stop_line_positions = self.config['stop_line_positions']
         if(self.pose):
             car_position = self.get_closest_waypoint(self.pose.pose)
+            # The following code is for debug only
+            if(self.waypoints):
+                plot_wp_vc_2D(self.waypoints,self.pose)
+            else:
+                return -1, TrafficLight.UNKNOWN
+        else:
+            return -1, TrafficLight.UNKNOWN
 
         #TODO find the closest visible traffic light (if one exists)
 
