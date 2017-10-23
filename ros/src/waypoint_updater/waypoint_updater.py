@@ -7,6 +7,8 @@ from std_msgs.msg import Int32
 
 import sys
 import math
+import numpy as np
+import tf
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -39,17 +41,28 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
-        self.base_wps = None
-        self.base_wps_count = 0
+        self.waypoints = None
+        self.waypoints_count = 0
         self.curr_pose = None
-
+        self.position = None
+        self.orientation = None
+        self.theta = None
         self.stop_idx = -1
 
         rospy.spin()
 
     def pose_cb(self, msg):
         # TODO: Implement
-        self.curr_pose = msg
+        self.curr_pose = msg.pose
+        self.position = self.curr_pose.position
+        self.orientation = self.curr_pose.orientation
+        # transform Quaterion coordinate to (roll, pitch and yaw)
+        euler = tf.transformations.euler_from_quaternion([
+            self.orientation.x,
+            self.orientation.y,
+            self.orientation.z,
+            self.orientation.w])
+        self.theta = euler[2]   # steering angle
 
         final_wps = self.generate_final_waypoints()
 
@@ -60,16 +73,16 @@ class WaypointUpdater(object):
         select_wps = []
 
         # waypoints from base waypoints
-        if self.base_wps:
+        if self.waypoints:
             # waypoint closest to car
-            start_idx = self.closest_wp(self.base_wps, self.curr_pose)
+            start_idx = self.get_closest_waypoint(self.curr_pose)
 
             # slice LOOKAHEAD_WPS number of waypoints from base waypoints 
             end_idx = start_idx + LOOKAHEAD_WPS
-            if end_idx > self.base_wps_count:
-                select_wps = self.base_wps[start_idx:] + self.base_wps[0:end_idx % self.base_wps_count]
+            if end_idx > self.waypoints_count:
+                select_wps = self.waypoints[start_idx:] + self.waypoints[0:end_idx % self.waypoints_count]
             else:
-                select_wps = self.base_wps[start_idx:end_idx]
+                select_wps = self.waypoints[start_idx:end_idx]
 
             #rospy.logwarn('final waypoints range: (' + str(start_idx) + ',' + str(end_idx % self.base_wps_count) + ')')
 
@@ -106,20 +119,29 @@ class WaypointUpdater(object):
             v.append(w.twist.twist.linear.x)
                     
         return final_wps
-     
-    def closest_wp(self, waypoints, p):
-        # This closest point returned might not be infront of the car
-        # Is that problematic?
+
+    def euclidean_distance_3D(self, p1, p2):
+        return math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2  + (p1.z-p2.z)**2)
+
+    def get_closest_waypoint(self, pose):
 
         min_dist = sys.maxint
         min_dist_idx = 0
 
-        for i in range(0, self.base_wps_count):
-            dist = self.euclidean_distance(self.base_wps[i].pose.pose.position, p.pose.position)
+        for i in range(0, self.waypoints_count):
+            dist = self.euclidean_distance_3D(self.waypoints[i].pose.pose.position, pose.position)
             if min_dist > dist:
                 min_dist = dist
                 min_dist_idx = i
 
+        x = self.waypoints[min_dist_idx].pose.pose.position.x
+        y = self.waypoints[min_dist_idx].pose.pose.position.y
+        heading = np.arctan2((y-pose.position.y), (x-pose.position.x))
+        angle = np.abs(heading - self.theta)
+        if angle > np.pi/4:
+            min_dist_idx += 1
+            if min_dist_idx > len(self.waypoints):
+                min_dist_idx = 0
         return min_dist_idx
 
     def euclidean_distance(self, p1, p2):
@@ -128,9 +150,9 @@ class WaypointUpdater(object):
 
     def waypoints_cb(self, waypoints):
         # TODO: Implement
-        self.base_wps = waypoints.waypoints
-        self.base_wps_count = len(self.base_wps)
-        rospy.logwarn('Base waypoints count = %d' % (self.base_wps_count))
+        self.waypoints = waypoints.waypoints
+        self.waypoints_count = len(self.waypoints)
+        rospy.logwarn('Received base waypoints. Total base waypoints = ' + str(self.waypoints_count))
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
