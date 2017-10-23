@@ -52,3 +52,36 @@ def plot_wp_vc_2D(waypoints,pose):
     plt.scatter(x_vc, y_vc, marker='s', s=30, c='r', alpha=0.5)
     plt.savefig('wp_vc_2D.png')
 
+def plot_wp_vc_sl_2D(waypoints,pose,config):
+    '''
+    Plot way points, the ego car, and the stop line
+    '''
+    # Plot the way points
+    n_wp = len(waypoints)
+    x_wp = []
+    y_wp = []
+    c_wp = []
+    for i in range(0,n_wp,100):
+        wp = waypoints[i]
+        x_wp.append(wp.pose.pose.position.x)
+        y_wp.append(wp.pose.pose.position.y)
+        temp_wp = np.double(i)/np.double(n_wp)
+        c_wp.append(temp_wp)
+    
+    plt.scatter(x_wp, y_wp, marker='^', s=30, c=c_wp, alpha=0.5, 
+                edgecolors='none', cmap=plt.cm.cool)
+    # Plot the car
+    x_vc = [pose.pose.position.x]
+    y_vc = [pose.pose.position.y]
+    plt.scatter(x_vc, y_vc, marker='s', s=30, c='r', alpha=0.5, edgecolors='none')
+    # Plot the stop line
+    stop_line_positions = config['stop_line_positions']
+    x_sl = []
+    y_sl = []
+    for p in stop_line_positions:
+        x_sl.append(p[0])
+        y_sl.append(p[1])
+    plt.scatter(x_sl, y_sl, marker='_', s=100, c='k', alpha=0.5, edgecolors='none')
+    
+    plt.savefig('wp_vc_sl_2D.png')
+
