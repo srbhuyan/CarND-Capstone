@@ -16,6 +16,10 @@ import cv2
 import yaml
 import csv
 
+# The following lib is for debug
+import matplotlib.pyplot as plt
+from debug_utilities import plot_waypoints_2D
+
 from light_classification.simple_detector import simple_detector, simple_detector_ROSdebug
 
 STATE_COUNT_THRESHOLD = 3
@@ -80,6 +84,8 @@ class TLDetector(object):
         self.waypoints = waypoints.waypoints
         self.waypoints_count = len(self.waypoints)
         rospy.logwarn('Received base waypoints. Total base waypoints = ' + str(self.waypoints_count))
+        # The following lines ar for debug perpose
+        plot_waypoints_2D(self.waypoints)
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
