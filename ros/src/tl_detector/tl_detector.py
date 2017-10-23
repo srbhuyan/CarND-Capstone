@@ -18,7 +18,7 @@ import csv
 
 # The following lib is for debug
 import matplotlib.pyplot as plt
-from debug_utilities import plot_wp_vc_2D, plot_wp_vc_sl_2D
+from debug_utilities import plot_wp_vc_sl_tl_2D
 
 from light_classification.simple_detector import simple_detector, simple_detector_ROSdebug
 
@@ -262,7 +262,7 @@ class TLDetector(object):
             # The following code is for debug only
             if(self.waypoints):
                 #plot_wp_vc_2D(self.waypoints,self.pose)
-                plot_wp_vc_sl_2D(self.waypoints,self.pose,self.config)
+                plot_wp_vc_sl_tl_2D(self.waypoints,self.pose,self.config,self.lights)
             else:
                 return -1, TrafficLight.UNKNOWN
         else:
