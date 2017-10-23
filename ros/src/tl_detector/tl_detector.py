@@ -32,6 +32,7 @@ class TLDetector(object):
         self.waypoints_count = 0
         self.camera_image = None
         self.lights = []
+        self.min_dist_idx = 0
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -88,6 +89,7 @@ class TLDetector(object):
             self.orientation.z,
             self.orientation.w])
         self.theta = euler[2]   # steering angle
+        self.min_dist_idx = self.get_closest_waypoint(self.pose)
 
     def waypoints_cb(self, waypoints):
         self.waypoints = waypoints.waypoints
@@ -185,15 +187,21 @@ class TLDetector(object):
         min_dist_idx = 0
 
         for i in range(0, len(stop_line_positions)):
-            p1 = stop_line_positions[i]
-            p2 = self.pose.position
-            dist = math.sqrt((p1[0]-p2.x)**2 + (p1[1]-p2.y)**2)
+            stop_line_wp_position = stop_line_positions[i]
+            car_wp_position = self.pose.position
+            dist = math.sqrt((stop_line_wp_position[0] - car_wp_position.x)**2 + (stop_line_wp_position[1] - car_wp_position.y)**2)
             if min_dist > dist:
                 min_dist = dist
                 min_dist_idx = i
 
-        stop_line_xy = stop_line_positions[min_dist_idx]
-
+        # check if stop line waypoint is ahead of the waypoint closest to current car's position
+        car_closest_wp_position = self.waypoints[self.min_dist_idx].pose.pose.position
+        delta_y = (car_closest_wp_position.y - stop_line_positions[min_dist_idx][1])
+        delta_x = (car_closest_wp_position.x - stop_line_positions[min_dist_idx][0])
+        if math.cos(delta_y / delta_x) > 0:
+            stop_line_xy = stop_line_positions[min_dist_idx]
+        else:
+            stop_line_xy = stop_line_positions[min_dist_idx+1]
         p = PoseStamped()
         p.pose.position.x = stop_line_xy[0]
         p.pose.position.y = stop_line_xy[1]

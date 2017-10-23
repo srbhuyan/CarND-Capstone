@@ -26,9 +26,9 @@ class Controller(object):
         self.sample_time = 0.02  # 50Hz
 
         self.yaw_controller = YawController(self.wheel_base, self.steer_ratio, self.min_speed, self.max_lat_accel, self.max_steer_angle)
-        kp = 1.5  # to counter-steer deviations
+        kp = 1.5    # to counter-steer deviations
         ki = 0.004  # to correct system errors, set to low as we are in a simulator
-        kd = 0.1  # to smooth out at large deviations
+        kd = 0.1    # to smooth out at large deviations
         self.pid = PID(kp, ki, kd, mn=decel_limit, mx=accel_limit)
         self.lowpass = LowPassFilter(tau=4, ts=1.) # new_val = 1/5*val + 4/5*last_val
 
