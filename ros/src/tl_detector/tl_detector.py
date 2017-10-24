@@ -291,7 +291,8 @@ class TLDetector(object):
                 elif state == 2:
                     state_str = 'Green'
 
-                rospy.logwarn('The state of the traffic light is: {}'.format(state_str))
+                if self.state != state:
+                    rospy.logwarn('The state of the traffic light changes to: {}'.format(state_str))
             
             # waypoint closest to next stop line
             light_wp = wp_closest_to_next_stop_line_idx
