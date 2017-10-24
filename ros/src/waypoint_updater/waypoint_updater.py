@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import PoseStamped
-from styx_msgs.msg import Lane, Waypoint
+from geometry_msgs.msg import PoseStamped, TwistStamped
+from styx_msgs.msg import Lane
 from std_msgs.msg import Int32
-
+import numpy as np
 import sys
 import math
 
@@ -31,6 +31,7 @@ class WaypointUpdater(object):
         rospy.init_node('waypoint_updater')
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.twist_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
@@ -42,6 +43,7 @@ class WaypointUpdater(object):
         self.base_wps = None
         self.base_wps_count = 0
         self.curr_pose = None
+        self.curr_twist = None
 
         self.stop_idx = -1
 
@@ -50,14 +52,19 @@ class WaypointUpdater(object):
     def pose_cb(self, msg):
         # TODO: Implement
         self.curr_pose = msg
-
         final_wps = self.generate_final_waypoints()
-
         # publish final waypoints to /final_waypoints topic
         self.final_waypoints_pub.publish(final_wps)
     
+    def twist_cb(self, msg):
+        # TODO: Implement
+        self.curr_twist = msg
+    
     def generate_final_waypoints(self):
         select_wps = []
+        
+        start_idx = -1
+        end_idx = -1
 
         # waypoints from base waypoints
         if self.base_wps:
@@ -83,17 +90,33 @@ class WaypointUpdater(object):
         if self.stop_idx != -1:
 
             # set velocities of all selected wps to zero
+#            for i in range(len(select_wps)):
+#                self.set_waypoint_velocity(select_wps, i, 0.0)
+                
+            # control deceleration
+#            stop_idx_in_select_wps = self.stop_idx - start_idx
+#            decelerate_rate = 0.2
+#            velocity = 0.0  
+#            for i in range(stop_idx_in_select_wps+1):
+#                self.set_waypoint_velocity(select_wps, stop_idx_in_select_wps - i, velocity)
+#                velocity += decelerate_rate
+
             for i in range(len(select_wps)):
                 self.set_waypoint_velocity(select_wps, i, 0.0)
                 
-            # control deceleration
             stop_idx_in_select_wps = self.stop_idx - start_idx
-            decelerate_rate = 0.2
+            curr_velocity = self.curr_twist.twist.linear.x
+            decelerate_rate = curr_velocity / np.double(max(1,stop_idx_in_select_wps))
             velocity = 0.0
-
+            
+            rospy.logwarn('curr_index is: {}'.format(start_idx))
+            rospy.logwarn('stop_index is: {}'.format(self.stop_idx))
+            rospy.logwarn('curr_velocity is: {}'.format(curr_velocity))
+            
             for i in range(stop_idx_in_select_wps+1):
                 self.set_waypoint_velocity(select_wps, stop_idx_in_select_wps - i, velocity)
-                velocity += decelerate_rate
+                rospy.logwarn('Planned velocity at {} points ahead is: {}'.format(stop_idx_in_select_wps - i,velocity))
+                velocity += decelerate_rate               
         
         # Acceleration
         else:
