@@ -262,7 +262,8 @@ class TLDetector(object):
             # The following code is for debug only
             if(self.waypoints):
                 #plot_wp_vc_2D(self.waypoints,self.pose)
-                plot_wp_vc_sl_tl_2D(self.waypoints,self.pose,self.config,self.lights)
+                # plot_wp_vc_sl_tl_2D(self.waypoints,self.pose,self.config,self.lights)
+                pass
             else:
                 return -1, TrafficLight.UNKNOWN
         else:

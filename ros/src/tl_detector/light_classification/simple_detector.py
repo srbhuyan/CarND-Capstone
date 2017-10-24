@@ -28,20 +28,21 @@ def color_channel_extraction(image):
 # Apply color filter on the image
 def weighted_channels(image):
     v_channel, s_channel, r_channel, g_channel, b_channel = color_channel_extraction(image)
-    weight_v = np.clip(v_channel*2-1,0,1)
-    weight_s = np.clip(s_channel*2-1,0,1)
-    weighted_r = weight_v*weight_s*r_channel
-    weighted_g = weight_v*weight_s*g_channel
-    weighted_b = weight_v*weight_s*b_channel
+    weight_v = np.clip(v_channel+v_channel-1,0,1)
+    weight_s = np.clip(s_channel+s_channel-1,0,1)
+    weight_all = weight_v*weight_s
+    weighted_r = weight_all*r_channel
+    weighted_g = weight_all*g_channel
+    weighted_b = weight_all*b_channel
     return weighted_r,weighted_g,weighted_b
 
 # color space segmentation
 def color_space_segmentation(image):
     weighted_r,weighted_g,weighted_b = weighted_channels(image)
     # set partition
-    partition_r = weighted_r-2*weighted_g>0
-    partition_g = weighted_g-2*weighted_r>0
-    partition_y = np.logical_and(weighted_r-2*weighted_g<0, weighted_g-2*weighted_r<0)
+    partition_r = weighted_r-weighted_g-weighted_g>0
+    partition_g = weighted_g-weighted_r-weighted_r>0
+    partition_y = np.logical_and(weighted_r-weighted_g-weighted_g<0, weighted_g-weighted_r-weighted_r<0)
     # segment pixel values to different partition
     segment_r = np.zeros(weighted_r.shape)
     segment_g = np.zeros(weighted_r.shape)
@@ -54,9 +55,9 @@ def color_space_segmentation(image):
     temp2[partition_y] = weighted_g[partition_y]
     segment_y = np.max(np.stack([temp1,temp2],axis=2),axis=2)
     # Threashold
-    segment_r = np.clip(segment_r*2-1,0,1)
-    segment_g = np.clip(segment_g*2-1,0,1)
-    segment_y = np.clip(segment_y*2-1,0,1)
+    segment_r = np.clip(segment_r+segment_r-1,0,1)
+    segment_g = np.clip(segment_g+segment_g-1,0,1)
+    segment_y = np.clip(segment_y+segment_y-1,0,1)
     return segment_r,segment_g,segment_y
 
 # Simple classifier
