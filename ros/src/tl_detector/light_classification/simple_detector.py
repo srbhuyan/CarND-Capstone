@@ -4,22 +4,24 @@ Created on Sat Oct 14 08:27:19 2017
 @author: zhi
 """
 import numpy as np
+import cv2
 
 # Image preprocessing
 def image_preprocessing(raw_image):
     # Convert to numpy array
     image = np.array(raw_image)
-    # uint8->double
+    # uint8->float32
     if image.dtype=='uint8':
-        image = np.double(image)/255.0
+        image = np.float32(image)/255.0
     # Saturate
     image[image<0.1] = 0.1
     return image
 
 # Transform color space
 def color_channel_extraction(image):
-    v_channel = np.max(image,axis=2)
-    s_channel = (v_channel-np.min(image,axis=2))/v_channel
+    HSV = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
+    s_channel = HSV[:,:,1]
+    v_channel = HSV[:,:,2]
     r_channel = image[:,:,0]
     g_channel = image[:,:,1]
     b_channel = image[:,:,2]
@@ -30,10 +32,10 @@ def weighted_channels(image):
     v_channel, s_channel, r_channel, g_channel, b_channel = color_channel_extraction(image)
     weight_v = np.clip(v_channel+v_channel-1,0,1)
     weight_s = np.clip(s_channel+s_channel-1,0,1)
-    weight_all = weight_v*weight_s
-    weighted_r = weight_all*r_channel
-    weighted_g = weight_all*g_channel
-    weighted_b = weight_all*b_channel
+    weight_all = cv2.multiply(weight_v,weight_s)
+    weighted_r = cv2.multiply(weight_all,r_channel)
+    weighted_g = cv2.multiply(weight_all,g_channel)
+    weighted_b = cv2.multiply(weight_all,b_channel)
     return weighted_r,weighted_g,weighted_b
 
 # color space segmentation
@@ -53,7 +55,7 @@ def color_space_segmentation(image):
     temp2 = segment_y
     temp1[partition_y] = weighted_r[partition_y]
     temp2[partition_y] = weighted_g[partition_y]
-    segment_y = np.max(np.stack([temp1,temp2],axis=2),axis=2)
+    segment_y = cv2.max(temp1,temp2)
     # Threashold
     segment_r = np.clip(segment_r+segment_r-1,0,1)
     segment_g = np.clip(segment_g+segment_g-1,0,1)
