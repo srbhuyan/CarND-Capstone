@@ -20,8 +20,6 @@ import csv
 import matplotlib.pyplot as plt
 from debug_utilities import plot_wp_vc_sl_tl_2D
 
-from light_classification.simple_detector import simple_detector, simple_detector_ROSdebug
-
 STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
@@ -34,9 +32,8 @@ class TLDetector(object):
         self.camera_image = None
         self.lights = []
 
-        sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
-
+        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
         '''
         /vehicle/traffic_lights provides you with the location of the traffic light in 3D map space and
         helps you acquire an accurate ground truth data source for the traffic light
@@ -44,8 +41,8 @@ class TLDetector(object):
         simulator. When testing on the vehicle, the color state will not be available. You'll need to
         rely on the position of the light and the camera image to predict it.
         '''
-        sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
-        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
+        rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
+        rospy.Subscriber('/image_color', Image, self.image_cb)
 
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
@@ -84,7 +81,7 @@ class TLDetector(object):
         self.waypoints = waypoints.waypoints
         self.waypoints_count = len(self.waypoints)
         rospy.logwarn('Received base waypoints. Total base waypoints = ' + str(self.waypoints_count))
-        # The following lines ar for debug perpose
+        # The following lines are for debug perpose
         # plot_waypoints_2D(self.waypoints)
 
     def traffic_cb(self, msg):
@@ -252,22 +249,16 @@ class TLDetector(object):
 
         """
 
-        light = -1
-        state = -1
-
-        # List of positions that correspond to the line to stop in front of for a given intersection
-        stop_line_positions = self.config['stop_line_positions']
-        if(self.pose):
-            car_position = self.get_closest_waypoint(self.pose.pose)
+        if(self.pose and self.waypoints):
             # The following code is for debug only
-            if(self.waypoints):
-                #plot_wp_vc_2D(self.waypoints,self.pose)
-                plot_wp_vc_sl_tl_2D(self.waypoints,self.pose,self.config,self.lights)
-            else:
-                return -1, TrafficLight.UNKNOWN
+            # plot_wp_vc_sl_tl_2D(self.waypoints,self.pose,self.config,self.lights)
+            pass
         else:
             return -1, TrafficLight.UNKNOWN
-
+        
+        light = -1
+        state = -1
+        
         #TODO find the closest visible traffic light (if one exists)
 
         wp_closest_to_car_idx = self.get_closest_waypoint(self.pose.pose)
@@ -287,7 +278,7 @@ class TLDetector(object):
             
             # use hack to run tests independent of the classifier
             if self.hack_light_state:
-                state = next_light_statie
+                state = next_light_state
             else:
                 state = self.get_light_state(light)
 
@@ -300,14 +291,14 @@ class TLDetector(object):
                 elif state == 2:
                     state_str = 'Green'
 
-                rospy.logwarn('The state of the traffic light is: {}'.format(state_str))
+                if self.state != state:
+                    rospy.logwarn('The state of the traffic light changes to: {}'.format(state_str))
             
             # waypoint closest to next stop line
             light_wp = wp_closest_to_next_stop_line_idx
 
             return light_wp, state
 
-        #self.waypoints = None
         return -1, TrafficLight.UNKNOWN
 
 if __name__ == '__main__':
