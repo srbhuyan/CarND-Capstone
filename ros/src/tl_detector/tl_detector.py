@@ -191,16 +191,15 @@ class TLDetector(object):
 
         for i in range(0, len(stop_line_positions)):
             stop_line_wp_position = stop_line_positions[i]
-            car_wp_position = self.pose.position
+            car_wp_position = self.waypoints[self.min_dist_idx].pose.pose.position
             dist = math.sqrt((stop_line_wp_position[0] - car_wp_position.x)**2 + (stop_line_wp_position[1] - car_wp_position.y)**2)
             if min_dist > dist:
                 min_dist = dist
                 min_dist_idx = i
 
         # check if stop line waypoint is ahead of the waypoint closest to current car's position
-        car_closest_wp_position = self.waypoints[self.min_dist_idx].pose.pose.position
-        delta_y = (car_closest_wp_position.y - stop_line_positions[min_dist_idx][1])
-        delta_x = (car_closest_wp_position.x - stop_line_positions[min_dist_idx][0])
+        delta_y = (car_wp_position.y - stop_line_positions[min_dist_idx][1])
+        delta_x = (car_wp_position.x - stop_line_positions[min_dist_idx][0])
         if math.cos(delta_y / delta_x) > 0:
             stop_line_xy = stop_line_positions[min_dist_idx]
         else:
@@ -291,8 +290,8 @@ class TLDetector(object):
         #TODO find the closest visible traffic light (if one exists)
 
         wp_closest_to_car_idx = self.get_closest_waypoint(self.pose)
-        next_stop_line_idx, next_stop_light_pose = self.get_next_stop_line()
-        wp_closest_to_next_stop_line_idx = self.get_closest_waypoint(next_stop_light_pose.pose) 
+        next_stop_line_idx, next_stop_line_pose = self.get_next_stop_line()
+        wp_closest_to_next_stop_line_idx = self.get_closest_waypoint(next_stop_line_pose.pose)
         next_light_3D = self.lights[next_stop_line_idx]
         next_light_state = next_light_3D.state
 

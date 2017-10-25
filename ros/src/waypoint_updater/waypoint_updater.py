@@ -26,6 +26,8 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+MAX_SPEED = 10 # The actrual speed is 2x MAX_SPEED. I don't know why. Please seet this value < 10 or the controller cannot follow and the I controller would not work properly..
+
 
 
 class WaypointUpdater(object):
@@ -75,10 +77,10 @@ class WaypointUpdater(object):
     def twist_cb(self, msg):
         # TODO: Implement
         self.curr_twist = msg
-    
+
     def generate_final_waypoints(self):
         select_wps = []
-        
+
         start_idx = -1
         end_idx = -1
 
@@ -87,63 +89,51 @@ class WaypointUpdater(object):
             # waypoint closest to car
             start_idx = self.get_closest_waypoint(self.curr_pose)
 
-            # slice LOOKAHEAD_WPS number of waypoints from base waypoints 
+            # slice LOOKAHEAD_WPS number of waypoints from base waypoints
             end_idx = start_idx + LOOKAHEAD_WPS
             if end_idx > self.waypoints_count:
                 select_wps = self.waypoints[start_idx:] + self.waypoints[0:end_idx % self.waypoints_count]
             else:
                 select_wps = self.waypoints[start_idx:end_idx]
 
-            #rospy.logwarn('final waypoints range: (' + str(start_idx) + ',' + str(end_idx % self.base_wps_count) + ')')
+                # rospy.logwarn('final waypoints range: (' + str(start_idx) + ',' + str(end_idx % self.waypoints_count) + ')')
 
         final_wps = Lane()
         final_wps.waypoints = select_wps
 
-        # if upcoming red light -> Decelerate (to full stop) 
-        # else                  -> Accelerate (to max velocity) 
+        # if upcoming red light -> Decelerate (to full stop)
+        # else                  -> Accelerate (to max velocity)
 
         # Deceleration
         if self.stop_idx != -1:
 
-            # set velocities of all selected wps to zero
-#            for i in range(len(select_wps)):
-#                self.set_waypoint_velocity(select_wps, i, 0.0)
-                
-            # control deceleration
-#            stop_idx_in_select_wps = self.stop_idx - start_idx
-#            decelerate_rate = 0.2
-#            velocity = 0.0  
-#            for i in range(stop_idx_in_select_wps+1):
-#                self.set_waypoint_velocity(select_wps, stop_idx_in_select_wps - i, velocity)
-#                velocity += decelerate_rate
-
             for i in range(len(select_wps)):
                 self.set_waypoint_velocity(select_wps, i, 0.0)
-                
+
             stop_idx_in_select_wps = self.stop_idx - start_idx
-            curr_velocity = self.curr_twist.twist.linear.x
-            decelerate_rate = curr_velocity / np.double(max(1,stop_idx_in_select_wps))
-            velocity = 0.0
-            
-            rospy.logwarn('curr_index is: {}'.format(start_idx))
-            rospy.logwarn('stop_index is: {}'.format(self.stop_idx))
-            rospy.logwarn('curr_velocity is: {}'.format(curr_velocity))
-            
-            for i in range(stop_idx_in_select_wps+1):
-                self.set_waypoint_velocity(select_wps, stop_idx_in_select_wps - i, velocity)
-                rospy.logwarn('Planned velocity at {} points ahead is: {}'.format(stop_idx_in_select_wps - i,velocity))
-                velocity += decelerate_rate               
-        
+            # Using sudden stop mechnism. It is just a step responce and performs quite well
+            #            for i in range(stop_idx_in_select_wps-np.int(MAX_SPEED*1.5)):
+            #                self.set_waypoint_velocity(select_wps, i, MAX_SPEED)
+
+            for i in range(stop_idx_in_select_wps - np.int(MAX_SPEED * 0.5)):
+                self.set_waypoint_velocity(select_wps, i, MAX_SPEED / 10)
+
+            for i in range(stop_idx_in_select_wps - np.int(MAX_SPEED * 1.0)):
+                self.set_waypoint_velocity(select_wps, i, MAX_SPEED / 2)
+
+            for i in range(stop_idx_in_select_wps - np.int(MAX_SPEED * 3.0)):
+                self.set_waypoint_velocity(select_wps, i, MAX_SPEED)
+
         # Acceleration
         else:
             # set velocities of all selected wps to 40
             for i in range(len(select_wps)):
-                self.set_waypoint_velocity(select_wps, i, 25.0)
+                self.set_waypoint_velocity(select_wps, i, MAX_SPEED)  # This should be smaller than 10
 
         v = []
         for w in select_wps:
             v.append(w.twist.twist.linear.x)
-                    
+
         return final_wps
 
     def euclidean_distance_3D(self, p1, p2):
