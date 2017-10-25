@@ -200,7 +200,7 @@ class TLDetector(object):
         # check if stop line waypoint is ahead of the waypoint closest to current car's position
         delta_y = (car_wp_position.y - stop_line_positions[min_dist_idx][1])
         delta_x = (car_wp_position.x - stop_line_positions[min_dist_idx][0])
-        if math.cos(delta_y / delta_x) > 0:
+        if (math.cos(delta_y / delta_x) > 0) and abs(delta_x)>0:
             stop_line_xy = stop_line_positions[min_dist_idx]
         else:
             stop_line_xy = stop_line_positions[min_dist_idx+1]
