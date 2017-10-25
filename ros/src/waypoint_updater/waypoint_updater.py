@@ -109,20 +109,23 @@ class WaypointUpdater(object):
             decelerate_rate = curr_velocity / np.double(max(1,stop_idx_in_select_wps))
             velocity = 0.0
             
-            rospy.logwarn('curr_index is: {}'.format(start_idx))
-            rospy.logwarn('stop_index is: {}'.format(self.stop_idx))
-            rospy.logwarn('curr_velocity is: {}'.format(curr_velocity))
+            #rospy.logwarn('curr_index is: {}'.format(start_idx))
+            #rospy.logwarn('stop_index is: {}'.format(self.stop_idx))
+            #rospy.logwarn('curr_velocity is: {}'.format(curr_velocity))
             
-            for i in range(stop_idx_in_select_wps+1):
-                self.set_waypoint_velocity(select_wps, stop_idx_in_select_wps - i, velocity)
-                rospy.logwarn('Planned velocity at {} points ahead is: {}'.format(stop_idx_in_select_wps - i,velocity))
-                velocity += decelerate_rate               
+#            for i in range(stop_idx_in_select_wps+1):
+#                self.set_waypoint_velocity(select_wps, stop_idx_in_select_wps - i, velocity)
+#                #rospy.logwarn('Planned velocity at {} points ahead is: {}'.format(stop_idx_in_select_wps - i,velocity))
+#                velocity += decelerate_rate      
+            
+            for i in range(stop_idx_in_select_wps):
+                self.set_waypoint_velocity(select_wps, i, curr_velocity-i*decelerate_rate)
         
         # Acceleration
         else:
             # set velocities of all selected wps to 40
             for i in range(len(select_wps)):
-                self.set_waypoint_velocity(select_wps, i, 25.0)
+                self.set_waypoint_velocity(select_wps, i, 10.0) # This should be smaller than 15
 
         v = []
         for w in select_wps:
