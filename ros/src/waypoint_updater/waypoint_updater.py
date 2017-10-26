@@ -28,7 +28,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
 MAX_SPEED = 10 # The actrual speed is 2x MAX_SPEED. I don't know why. Please seet this value < 10 or the controller cannot follow and the I controller would not work properly..
 
-
+DEBUG = True
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -128,15 +128,20 @@ class WaypointUpdater(object):
 
         # Acceleration
         else:
-            # set velocities of all selected wps to 40
+            # Acceleration should be gradual. Although throttle=1.0 works OK in the simulator
+            # it would be rough for Carla
+            # We can use increments in steps as used for deceleration
             for i in range(len(select_wps)):
 
                 self.set_waypoint_velocity(select_wps, i, MAX_SPEED) # This should be smaller than 10
 
+        if DEBUG:
+            v = []
+            for w in select_wps:
+                v.append(w.twist.twist.linear.x)
 
-        v = []
-        for w in select_wps:
-            v.append(w.twist.twist.linear.x)
+            rospy.logwarn('Velocities of selected waypoints:')
+            rospy.logwarn('{}'.format(v))
 
         return final_wps
 
