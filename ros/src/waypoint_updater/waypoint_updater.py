@@ -112,23 +112,27 @@ class WaypointUpdater(object):
 
             stop_idx_in_select_wps = self.stop_idx - start_idx
             # Using sudden stop mechnism. It is just a step responce and performs quite well
-            #            for i in range(stop_idx_in_select_wps-np.int(MAX_SPEED*1.5)):
-            #                self.set_waypoint_velocity(select_wps, i, MAX_SPEED)
 
-            for i in range(stop_idx_in_select_wps - np.int(MAX_SPEED * 0.5)):
-                self.set_waypoint_velocity(select_wps, i, MAX_SPEED / 10)
-
-            for i in range(stop_idx_in_select_wps - np.int(MAX_SPEED * 1.0)):
-                self.set_waypoint_velocity(select_wps, i, MAX_SPEED / 2)
-
-            for i in range(stop_idx_in_select_wps - np.int(MAX_SPEED * 3.0)):
+#            for i in range(stop_idx_in_select_wps-np.int(MAX_SPEED*1.5)):
+#                self.set_waypoint_velocity(select_wps, i, MAX_SPEED)
+            
+            for i in range(stop_idx_in_select_wps-np.int(MAX_SPEED*0.5)):
+                self.set_waypoint_velocity(select_wps, i, MAX_SPEED/10)
+            
+            for i in range(stop_idx_in_select_wps-np.int(MAX_SPEED*1.0)):
+                self.set_waypoint_velocity(select_wps, i, MAX_SPEED/2)
+            
+            for i in range(stop_idx_in_select_wps-np.int(MAX_SPEED*3.0)):
                 self.set_waypoint_velocity(select_wps, i, MAX_SPEED)
+        
 
         # Acceleration
         else:
             # set velocities of all selected wps to 40
             for i in range(len(select_wps)):
-                self.set_waypoint_velocity(select_wps, i, MAX_SPEED)  # This should be smaller than 10
+
+                self.set_waypoint_velocity(select_wps, i, MAX_SPEED) # This should be smaller than 10
+
 
         v = []
         for w in select_wps:
