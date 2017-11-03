@@ -231,14 +231,16 @@ class TLDetector(object):
                 min_dist = dist
                 min_dist_idx = i
 
-        x = self.waypoints[min_dist_idx].pose.pose.position.x
-        y = self.waypoints[min_dist_idx].pose.pose.position.y
-        heading = np.arctan2((y-pose.position.y), (x-pose.position.x))
-        angle = np.abs(heading - self.theta)
-        if angle > np.pi/4:
-            min_dist_idx += 1
-            if min_dist_idx > len(self.waypoints):
-                min_dist_idx = 0
+        if self.waypoints:
+            x = self.waypoints[min_dist_idx].pose.pose.position.x
+            y = self.waypoints[min_dist_idx].pose.pose.position.y
+            heading = np.arctan2((y-pose.position.y), (x-pose.position.x))
+            angle = np.abs(heading - self.theta)
+            if angle > np.pi/4:
+                min_dist_idx += 1
+                if min_dist_idx > len(self.waypoints):
+                    min_dist_idx = 0
+
         return min_dist_idx
 
     def euclidean_distance_2D(self, p1, p2):
