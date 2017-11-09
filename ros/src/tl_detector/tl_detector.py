@@ -95,7 +95,7 @@ class TLDetector(object):
     def waypoints_cb(self, waypoints):
         self.waypoints = waypoints.waypoints
         self.waypoints_count = len(self.waypoints)
-        rospy.logwarn('Received base waypoints. Total base waypoints = ' + str(self.waypoints_count))
+        #rospy.logwarn('Received base waypoints. Total base waypoints = ' + str(self.waypoints_count))
         # The following lines are for debug purpose
         # plot_waypoints_2D(self.waypoints)
 
@@ -185,13 +185,15 @@ class TLDetector(object):
         """
 
         stop_line_positions = self.config['stop_line_positions']
+        stop_line_positions_count = len(stop_line_positions)
        
         min_dist = sys.maxint
         min_dist_idx = 0
 
         for i in range(0, len(stop_line_positions)):
             stop_line_wp_position = stop_line_positions[i]
-            car_wp_position = self.waypoints[self.min_dist_idx].pose.pose.position
+            car_wp_position = self.waypoints[(self.min_dist_idx) % self.waypoints_count].pose.pose.position
+
             dist = math.sqrt((stop_line_wp_position[0] - car_wp_position.x)**2 + (stop_line_wp_position[1] - car_wp_position.y)**2)
             if min_dist > dist:
                 min_dist = dist
@@ -200,10 +202,13 @@ class TLDetector(object):
         # check if stop line waypoint is ahead of the waypoint closest to current car's position
         delta_y = (car_wp_position.y - stop_line_positions[min_dist_idx][1])
         delta_x = (car_wp_position.x - stop_line_positions[min_dist_idx][0])
-        if (math.cos(delta_y / delta_x) > 0) and abs(delta_x)>0:
+
+        if abs(delta_x)>0 and (math.cos(delta_y / delta_x) > 0):
             stop_line_xy = stop_line_positions[min_dist_idx]
         else:
-            stop_line_xy = stop_line_positions[min_dist_idx+1]
+            stop_line_xy = stop_line_positions[ (min_dist_idx+1) % stop_line_positions_count ]
+
+
         p = PoseStamped()
         p.pose.position.x = stop_line_xy[0]
         p.pose.position.y = stop_line_xy[1]

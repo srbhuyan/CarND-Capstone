@@ -177,7 +177,7 @@ class WaypointUpdater(object):
         # TODO: Implement
         self.waypoints = waypoints.waypoints
         self.waypoints_count = len(self.waypoints)
-        rospy.logwarn('Received base waypoints. Total base waypoints = ' + str(self.waypoints_count))
+        #rospy.logwarn('Received base waypoints. Total base waypoints = ' + str(self.waypoints_count))
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
