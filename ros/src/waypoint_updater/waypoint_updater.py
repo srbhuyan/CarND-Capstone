@@ -26,7 +26,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
-MAX_SPEED = 10 # The actrual speed is 2x MAX_SPEED. I don't know why. Please seet this value < 10 or the controller cannot follow and the I controller would not work properly..
+MAX_SPEED = 5 # The actrual speed is 2x MAX_SPEED. I don't know why. Please seet this value < 10 or the controller cannot follow and the I controller would not work properly..
 
 DEBUG = False
 
